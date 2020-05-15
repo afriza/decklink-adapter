@@ -1,5 +1,6 @@
 #include <vector>
 #include <string>
+#include <iostream>
 
 #include "platform.h"
 
@@ -28,9 +29,26 @@ int getVideoInputConversionIndexFromValue(BMDVideoInputConversionMode value) {
 	return -1;
 }
 
+// Taken from https://stackoverflow.com/a/4654718/109747
+bool is_number(const std::string& s)
+{
+	return !s.empty() && std::find_if(s.begin(), 
+		s.end(), [](unsigned char c) { return !std::isdigit(c); }) == s.end();
+}
+
+int getVideoInputConversionIndexFromKey(std::string key) {
+	for (size_t i = 0; i < kVideoInputConversion.size(); i++)
+	{
+		if (std::get<kVideoInputConversionKey>(kVideoInputConversion[i]) == key) {
+			return i;
+		}
+	}
+	return -1;
+}
+
 int main(int argc, char* argv[]) {
 	int deckLinkIndex = -1;
-	int vicmIndex     = -1;
+	int setVicmIndex  = -1;
 
 	int idx;
 
@@ -53,14 +71,25 @@ int main(int argc, char* argv[]) {
 			}
 			deckLinkIndex = atoi(argv[++i]);
 		}
-		else if (strcmp(argv[i], "-vicm") == 0) { // video input conversion mode
-			if (i+1 == argc) {
-				fprintf(stderr,"-vicm requires an integer argument\n");
+		else if (strcmp(argv[i], "-vicmIndex") == 0) { // video input conversion mode
+			if (i+1 == argc || !is_number(argv[i+1])) {
+				fprintf(stderr,"-vicmIndex requires an integer argument\n");
 				return 1;
 			}
-			vicmIndex = atoi(argv[++i]);
-			if (vicmIndex < 0 || vicmIndex >= (int)kVideoInputConversion.size()) {
-				fprintf(stderr,"-vicm must be between 0 and %lu (inclusive)", kVideoInputConversion.size()-1);
+			setVicmIndex = atoi(argv[++i]);
+			if (setVicmIndex < 0 || setVicmIndex >= (int)kVideoInputConversion.size()) {
+				fprintf(stderr,"-vicmIndex must be between 0 and %lu (inclusive)", kVideoInputConversion.size()-1);
+				return 1;
+			}
+		}
+		else if (strcmp(argv[i], "-vicmKey") == 0) {
+			if (i+1 == argc) {
+				std::cerr << "-vicmKey requires a string argument" << std::endl;
+				return 1;
+			}
+			setVicmIndex = getVideoInputConversionIndexFromKey(argv[++i]);
+			if (setVicmIndex == -1) {
+				std::cerr << "no matching value for -vicmKey of "<< argv[i] << std::endl;
 				return 1;
 			}
 		}
@@ -130,22 +159,22 @@ int main(int argc, char* argv[]) {
 		
 		videoInputConversionIndex = getVideoInputConversionIndexFromValue(videoInputConversion);
 		if (videoInputConversion != -1) {
-			printf("current input video conversion: [%d] %s\n", videoInputConversionIndex, std::get<kVideoInputConversionDescription>(kVideoInputConversion[videoInputConversionIndex]).c_str());
+			fprintf(stderr,"current input video conversion: [%d] %s\n", videoInputConversionIndex, std::get<kVideoInputConversionDescription>(kVideoInputConversion[videoInputConversionIndex]).c_str());
 		}
 
-		if (0 <= vicmIndex && vicmIndex < (int)kVideoInputConversion.size()) {
-			videoInputConversion = std::get<kVideoInputConversionValue>(kVideoInputConversion[vicmIndex]);
+		if (0 <= setVicmIndex && setVicmIndex < (int)kVideoInputConversion.size()) {
+			videoInputConversion = std::get<kVideoInputConversionValue>(kVideoInputConversion[setVicmIndex]);
 			result = deckLinkConfiguration->SetInt(bmdDeckLinkConfigVideoInputConversionMode, videoInputConversion);
 			if (result == S_OK) {
+				std::cerr << "Success to set Video Input Conversion Mode to [" <<setVicmIndex<< "] " << std::get<kVideoInputConversionDescription>(kVideoInputConversion[setVicmIndex]) << std::endl;
 				result = deckLinkConfiguration->WriteConfigurationToPreferences();
 				if (result == S_OK) {
-					printf("Success saving config to preferences.\n");
+					std::cerr << "Success saving config to preferences." << std::endl;
 				} else {
-					fprintf(stderr, "Failed to save config to preferences.\n");
+					std::cerr << "Failed to save config to preferences." << std::endl;
 				}
-				printf("Success to set Video Input Conversion Mode to [%d] %s\n", vicmIndex, std::get<kVideoInputConversionDescription>(kVideoInputConversion[vicmIndex]).c_str());
 			} else {
-				fprintf(stderr, "Failed to set Video Input Conversion Mode to [%d] %s\n", vicmIndex, std::get<kVideoInputConversionDescription>(kVideoInputConversion[vicmIndex]).c_str());
+				std::cerr << "Failed to set Video Input Conversion Mode to [" <<setVicmIndex<< "] " << std::get<kVideoInputConversionDescription>(kVideoInputConversion[setVicmIndex]) << std::endl;
 			}
 		}
 	}
