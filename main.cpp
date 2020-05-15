@@ -136,13 +136,13 @@ int main(int argc, char* argv[]) {
 
 	if (selectedDeckLink != NULL)
 	{
-		if (selectedDeckLink->QueryInterface(IID_IDeckLinkConfiguration, (void**)&deckLinkConfiguration) != S_OK)
+		if ((result=selectedDeckLink->QueryInterface(IID_IDeckLinkConfiguration, (void**)&deckLinkConfiguration)) != S_OK)
 		{
 			fprintf(stderr, "Unable to query IDeckLinkConfiguration interface\n");
 			goto bail;
 		}
 
-		if (selectedDeckLink->QueryInterface(IID_IDeckLinkAttributes, (void**)&deckLinkAttributes) != S_OK)
+		if ((result=selectedDeckLink->QueryInterface(IID_IDeckLinkAttributes, (void**)&deckLinkAttributes)) != S_OK)
 		{
 			fprintf(stderr, "Unable to query IDeckLinkAttributes interface\n");
 			goto bail;
